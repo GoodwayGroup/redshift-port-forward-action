@@ -1,0 +1,52 @@
+name: 'AWS Port Forward'
+description: 'Configure AWS credentials and set up port forwarding'
+inputs:
+  aws-region:
+    description: 'AWS Region'
+    required: true
+  role-to-assume:
+    description: 'IAM Role to assume'
+    required: true
+  role-session-name:
+    description: 'Role session name'
+    required: true
+  jumpbox-id:
+    description: 'ID of the jumpbox instance'
+    required: true
+  redshift-host:
+    description: 'Redshift host to connect to'
+    required: true
+  redshift-port:
+    description: 'Redshift port'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Configure AWS Creds
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        role-to-assume: ${{ inputs.role-to-assume }}
+        role-session-name: ${{ inputs.role-session-name }}
+        aws-region: ${{ inputs.aws-region }}
+    
+    - name: Set Up Port Forward
+      id: ssm-session
+      run: |
+        # Setup Forward
+        aws ssm start-session --target ${{ inputs.jumpbox-id }} --document-name AWS-StartPortForwardingSessionToRemoteHost --parameters '{"portNumber": ["${{ inputs.redshift-port }}"], "localPortNumber":["${{ inputs.redshift-port }}"], "host": ["${{ inputs.redshift-host }}"]}' > ssm_output.txt 2>&1 &
+        sleep 10 # Give it a moment to ensure the command has output the session Id
+        echo "Contents of ssm_output.txt:"
+        cat ssm_output.txt
+        echo "Attempting to extract Session Id..."
+        SESSION_ID=$(grep -oP 'SessionId: \K[a-zA-Z0-9-]+' ssm_output.txt | head -1)
+        if [ -z "$SESSION_ID" ]; then
+          echo "Session Id not found in the output."
+          exit 1
+        fi
+        echo "Extracted Session ID: $SESSION_ID"
+        echo "SSM_SESSION_ID=$SESSION_ID" >> $GITHUB_ENV
+    - name: Close SSM Session
+      if: always()
+      uses: gacts/run-and-post-run@v1
+      with:
+        post: aws ssm terminate-session --session-id ${{ env.SSM_SESSION_ID }} 
