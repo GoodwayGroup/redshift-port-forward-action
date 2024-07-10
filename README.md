@@ -1,3 +1,5 @@
+### This Action uses a combination of [configure-aws-credentials](https://github.com/aws-actions/configure-aws-credentials) and ssm session manager to open a port forward to redshift, and then close the ssm session at the end of the action
+
 Add the following to your action:
 ```
 permissions:
