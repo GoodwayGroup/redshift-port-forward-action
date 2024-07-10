@@ -31,6 +31,7 @@ runs:
     
     - name: Set Up Port Forward
       id: ssm-session
+      shell: bash
       run: |
         # Setup Forward
         aws ssm start-session --target ${{ inputs.jumpbox-id }} --document-name AWS-StartPortForwardingSessionToRemoteHost --parameters '{"portNumber": ["${{ inputs.redshift-port }}"], "localPortNumber":["${{ inputs.redshift-port }}"], "host": ["${{ inputs.redshift-host }}"]}' > ssm_output.txt 2>&1 &
